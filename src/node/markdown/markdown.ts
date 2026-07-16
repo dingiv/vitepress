@@ -22,7 +22,7 @@ import type {
 } from '@shikijs/types'
 import anchorPlugin from 'markdown-it-anchor'
 import { MarkdownItAsync, type MarkdownItAsyncOptions } from 'markdown-it-async'
-import attrsPlugin, { type MarkdownItAttrsOptions } from 'markdown-it-attrs'
+import attrsPlugin from 'markdown-it-attrs'
 import mditCjkFriendly from 'markdown-it-cjk-friendly'
 import { full as emojiPlugin } from 'markdown-it-emoji'
 import path from 'node:path'
@@ -160,7 +160,7 @@ export interface MarkdownOptions extends MarkdownItAsyncOptions {
    * Options for `markdown-it-attrs`
    * @see https://github.com/arve0/markdown-it-attrs
    */
-  attrs?: MarkdownItAttrsOptions & { disable?: boolean }
+  attrs?: Record<string, any> & { disable?: boolean }
   /**
    * Options for `markdown-it-emoji`
    * @see https://github.com/markdown-it/markdown-it-emoji
@@ -311,6 +311,7 @@ export async function createMarkdownRenderer(
 
   // third party plugins
   if (!options.attrs?.disable) {
+    // @ts-expect-error markdown-it-attrs API changed
     attrsPlugin(md, options.attrs)
   }
   emojiPlugin(md, options.emoji)

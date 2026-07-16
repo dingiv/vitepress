@@ -206,42 +206,80 @@ function generateMetadataScript(
     return { html: '', inHead: false }
   }
 
-  // We embed the hash map and site config strings into each page directly
-  // so that it doesn't alter the main chunk's hash on every build.
-  // It's also embedded as a string and JSON.parsed from the client because
-  // it's faster than embedding as JS object literal.
   const hashMapString = JSON.stringify(JSON.stringify(pageToHashMap))
-  const siteDataString = JSON.stringify(
-    JSON.stringify(serializeFunctions({ ...config.site, head: [] }))
-  )
 
-  const metadataContent = `window.__VP_HASH_MAP__=JSON.parse(${hashMapString});${
-    siteDataString.includes('_vp-fn_')
-      ? `${deserializeFunctions};window.__VP_SITE_DATA__=deserializeFunctions(JSON.parse(${siteDataString}));`
-      : `window.__VP_SITE_DATA__=JSON.parse(${siteDataString});`
-  }`
+  // ── PATCHED: __VP_HASH_MAP__ + __VP_SITE_DATA__ 合并到独立 JS、浏览器跨页面缓存 ──
+  const _sdJson = JSON.stringify(
+    serializeFunctions({ ...config.site, head: [] })
+  )
+  const _sdData =
+    `window.__VP_HASH_MAP__=JSON.parse(${hashMapString});` +
+    (_sdJson.includes('_vp-fn_')
+      ? `${deserializeFunctions};window.__VP_SITE_DATA__=deserializeFunctions(JSON.parse('${_sdJson}'));`
+      : `window.__VP_SITE_DATA__=JSON.parse('${_sdJson}');`)
+  const _sdHash = createHash('sha256').update(_sdData).digest('hex').slice(0, 8)
+  const _sdFile = path.join(config.assetsDir, `site-data.${_sdHash}.js`)
+  fs.mkdirSync(path.dirname(path.join(config.outDir, _sdFile)), {
+    recursive: true
+  })
+  fs.writeFileSync(path.join(config.outDir, _sdFile), _sdData)
+  const _sdURL = slash(config.site.base + _sdFile)
+
+  // ── PATCHED: sitemap 完全从 sidebar 配置生成（路径 + 标题）──
+  const _smUrls: string[] = []
+  const _seen = new Set<string>()
+  function addUrl(u: string, text: string) {
+    if (!_seen.has(u)) {
+      _seen.add(u)
+      _smUrls.push(`${u} - ${text}`)
+    }
+  }
+  function collectSidebar(items: any[], base: string) {
+    for (const item of items) {
+      // 嵌套 section：用 item 自身的 base（完整路径）递归
+      const itemBase = item.base || base
+      if (item.link && item.text) {
+        const link = (item.link as string).startsWith('/')
+          ? itemBase + item.link
+          : itemBase + '/' + item.link
+        addUrl(link.replace(/\/$/, '') || '/', item.text)
+      }
+      if (item.items) collectSidebar(item.items, itemBase)
+    }
+  }
+  const sidebar: any[] = (config.site.themeConfig as any).sidebar || []
+  for (const section of sidebar) {
+    const base = (section.base || '') as string
+    if (section.link && section.text) {
+      addUrl((base + section.link).replace(/\/$/, '') || '/', section.text)
+    }
+    if (section.items) collectSidebar(section.items, base)
+  }
+  // 兜底：pageToHashMap 中有但 sidebar 中没有的页面
+  for (const k of Object.keys(pageToHashMap)) {
+    if (k === '404') continue
+    const u =
+      '/' +
+      k
+        .replace(/_/g, '/')
+        .replace(/\.md$/, '')
+        .replace(/\/index$/, '')
+    if (!_seen.has(u) && !_seen.has(u + '/')) {
+      _smUrls.push(u)
+    }
+  }
+  _smUrls.sort()
+  const _sitemap = `\n<nav id="sitemap" aria-hidden="true">\n${_smUrls.join('\n')}\n</nav><style>#sitemap { display: none; }</style>`
 
   if (!config.metaChunk) {
-    return { html: `<script>${metadataContent}</script>`, inHead: false }
+    return {
+      html: `<script src="${_sdURL}"></script>${_sitemap}`,
+      inHead: false
+    }
   }
 
-  const metadataFile = path.join(
-    config.assetsDir,
-    'chunks',
-    `metadata.${createHash('sha256')
-      .update(metadataContent)
-      .digest('hex')
-      .slice(0, 8)}.js`
-  )
-
-  const resolvedMetadataFile = path.join(config.outDir, metadataFile)
-  const metadataFileURL = slash(`${config.site.base}${metadataFile}`)
-
-  fs.mkdirSync(path.dirname(resolvedMetadataFile), { recursive: true })
-  fs.writeFileSync(resolvedMetadataFile, metadataContent)
-
   return {
-    html: `<script type="module" src="${metadataFileURL}"></script>`,
+    html: `<script src="${_sdURL}"></script>${_sitemap}`,
     inHead: true
   }
 }

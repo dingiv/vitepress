@@ -90,7 +90,7 @@ export function useActiveAnchor(
   onMounted(() => {
     requestAnimationFrame(setActiveLink)
     window.addEventListener('scroll', onScroll)
-    container.value.addEventListener('click', onClick)
+    container.value?.addEventListener('click', onClick)
   })
 
   onUpdated(() => {
@@ -100,7 +100,7 @@ export function useActiveAnchor(
 
   onUnmounted(() => {
     window.removeEventListener('scroll', onScroll)
-    container.value.removeEventListener('click', onClick)
+    container.value?.removeEventListener('click', onClick)
   })
 
   function onClick(e: MouseEvent) {
