@@ -27,7 +27,7 @@ let pageHeight = 0
 
 /* ===== 颜色主题 ===== */
 const DARK = {
-  bg: '15, 18, 36',
+  bg: '35, 28, 51',
   // 5 光球：light→dark 同色系呼吸
   orbs: [
     { light: [220, 185, 255], dark: [110, 65, 190] },   // 紫
@@ -102,7 +102,7 @@ class Orb {
     g4.addColorStop(0.7, `rgba(${c}, 0.01)`)
     g4.addColorStop(1, 'rgba(0,0,0,0)')
     ctx.fillStyle = g4
-    ctx.fillRect(x - r * 2.5, screenY - r * 2.5, r * 5, r * 5)
+    ctx.beginPath(); ctx.arc(x, screenY, r * 2.5, 0, Math.PI * 2); ctx.fill()
 
     // 中层光芒
     const g2 = ctx.createRadialGradient(x, screenY, r * 0.2, x, screenY, r * 1.4)
@@ -110,16 +110,16 @@ class Orb {
     g2.addColorStop(0.5, `rgba(${c}, 0.15)`)
     g2.addColorStop(1, 'rgba(0,0,0,0)')
     ctx.fillStyle = g2
-    ctx.fillRect(x - r * 1.4, screenY - r * 1.4, r * 2.8, r * 2.8)
+    ctx.beginPath(); ctx.arc(x, screenY, r * 1.4, 0, Math.PI * 2); ctx.fill()
 
     // 内核
-    const g1 = ctx.createRadialGradient(x, screenY, 0, x, screenY, r * 0.5)
+    const g1 = ctx.createRadialGradient(x, screenY, 0, x, screenY, r * 0.8)
     g1.addColorStop(0, `rgba(${c}, 0.85)`)
-    g1.addColorStop(0.3, `rgba(${c}, 0.5)`)
-    g1.addColorStop(0.7, `rgba(${c}, 0.15)`)
-    g1.addColorStop(1, 'rgba(0,0,0,0)')
+    g1.addColorStop(0.25, `rgba(${c}, 0.5)`)
+    g1.addColorStop(0.6, `rgba(${c}, 0.15)`)
+    g1.addColorStop(1, `rgba(${c}, 0.02)`)
     ctx.fillStyle = g1
-    ctx.fillRect(x - r * 0.5, screenY - r * 0.5, r, r)
+    ctx.beginPath(); ctx.arc(x, screenY, r * 0.8, 0, Math.PI * 2); ctx.fill()
   }
 }
 
@@ -136,7 +136,9 @@ class Particle {
 
   update(w) {
     const dx = this.x - mouse.x
-    const dy = (this.y % pageHeight) - mouse.y
+    // 将粒子世界 Y 转为视口 Y（与 draw 中的 parallaxOffset 逻辑对齐）
+    const screenY = this.y - scrollY
+    const dy = screenY - mouse.y
     const dist = Math.sqrt(dx * dx + dy * dy)
     if (dist < 140) {
       const force = (140 - dist) / 140
@@ -240,8 +242,15 @@ function animate(time) {
 }
 
 /* ===== 事件 ===== */
+let prevW = window.innerWidth
 function onMouseMove(e) { mouse.x = e.clientX; mouse.y = e.clientY }
 function onScroll() { targetScrollY = window.scrollY }
+function onResize() {
+  const w = window.innerWidth
+  const ratio = prevW > 0 ? w / prevW : 1
+  for (const orb of orbs) { orb.x *= ratio }
+  prevW = w
+}
 
 let observer = null
 
@@ -280,6 +289,7 @@ onMounted(() => {
 
   window.addEventListener('mousemove', onMouseMove)
   window.addEventListener('scroll', onScroll, { passive: true })
+  window.addEventListener('resize', onResize)
 
   observer = new MutationObserver(() => updateColors())
   observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
@@ -289,6 +299,7 @@ onUnmounted(() => {
   cancelAnimationFrame(animationId)
   window.removeEventListener('mousemove', onMouseMove)
   window.removeEventListener('scroll', onScroll)
+  window.removeEventListener('resize', onResize)
   if (observer) observer.disconnect()
 })
 </script>
@@ -306,9 +317,5 @@ onUnmounted(() => {
   left: 0;
   height: 100vh;
   width: 100vw;
-}
-
-.content {
-
 }
 </style>
