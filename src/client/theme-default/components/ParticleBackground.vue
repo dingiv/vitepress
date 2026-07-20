@@ -251,7 +251,7 @@ function animate(time) {
 }
 
 /* ===== 事件 ===== */
-let prevW = window.innerWidth
+let prevW = 0
 function onMouseMove(e) { mouse.x = e.clientX; mouse.y = e.clientY }
 function onScroll() { scrollY = window.scrollY }
 function onResize() {
@@ -266,6 +266,7 @@ let observer = null
 onMounted(() => {
   updateColors()
   const w = window.innerWidth
+  prevW = w
 
   pageHeight = Math.max(document.documentElement.scrollHeight, window.innerHeight)
 

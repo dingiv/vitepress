@@ -269,17 +269,26 @@ function generateMetadataScript(
     }
   }
   _smUrls.sort()
-  const _sitemap = `\n<nav id="sitemap" aria-hidden="true">\n${_smUrls.join('\n')}\n</nav><style>#sitemap { display: none; }</style>`
+  // 每 200 个 URL 用一个 <pre> 包裹，防止 Chrome 折叠过长文本
+  const CHUNK = 200
+  const _preBlocks = []
+  for (let i = 0; i < _smUrls.length; i += CHUNK) {
+    _preBlocks.push('<pre>' + _smUrls.slice(i, i + CHUNK).join('\n') + '</pre>')
+  }
+  const _sitemap =
+    '\n<nav id="sitemap" aria-hidden="true">\n' +
+    _preBlocks.join('\n') +
+    '\n</nav><style>#sitemap{display:none}</style>'
 
   if (!config.metaChunk) {
     return {
       html: `<script src="${_sdURL}"></script>${_sitemap}`,
-      inHead: true
+      inHead: false
     }
   }
 
   return {
     html: `<script src="${_sdURL}"></script>${_sitemap}`,
-    inHead: true
+    inHead: false
   }
 }
