@@ -3,9 +3,7 @@
     <canvas ref="deepCanvas" class="particle-canvas deep-layer" />
     <canvas ref="midCanvas" class="particle-canvas mid-layer" />
     <canvas ref="nearCanvas" class="particle-canvas near-layer" />
-    <div class="content">
-      <slot></slot>
-    </div>
+    <slot></slot>
   </div>
 </template>
 
