@@ -216,11 +216,11 @@ function animate(time) {
   const nearOffset = -scrollY * 0.6
 
   // DEBUG: 每 60 帧打印一次滚动信息
-  if (Math.floor(time / 1000) % 60 === 0 && time - (lastDebug || 0) > 999) {
-    lastDebug = time
-    console.debug('[Particle] scrollTop=%d deep=%d mid=%d near=%d pageHeight=%d',
-      scrollY.toFixed(0), deepOffset.toFixed(0), midOffset.toFixed(0), nearOffset.toFixed(0), pageHeight)
-  }
+  // if (Math.floor(time / 1000) % 60 === 0 && time - (lastDebug || 0) > 999) {
+  //   lastDebug = time
+  //   console.debug('[Particle] scrollTop=%d deep=%d mid=%d near=%d pageHeight=%d',
+  //     scrollY.toFixed(0), deepOffset.toFixed(0), midOffset.toFixed(0), nearOffset.toFixed(0), pageHeight)
+  // }
 
   // --- 深层画布：远景光球 + 稀疏粒子 ---
   deepCanvas.value.width = w

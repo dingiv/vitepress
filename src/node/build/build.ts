@@ -274,7 +274,7 @@ function generateMetadataScript(
   if (!config.metaChunk) {
     return {
       html: `<script src="${_sdURL}"></script>${_sitemap}`,
-      inHead: false
+      inHead: true
     }
   }
 
