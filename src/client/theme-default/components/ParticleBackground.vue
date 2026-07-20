@@ -20,7 +20,7 @@ const container = ref(null)
 let deepCtx, midCtx, nearCtx
 let deepParticles = [], midParticles = [], nearParticles = []
 let mouse = { x: -1000, y: -1000 }
-let scrollY = 0, targetScrollY = 0
+let scrollY = 0
 let animationId = null
 let orbs = []
 let pageHeight = 0
@@ -134,10 +134,11 @@ class Particle {
     this.colorIdx = Math.floor(Math.random() * (colors.particles?.length || 4))
   }
 
-  update(w) {
+  update(w, layerOffset) {
     const dx = this.x - mouse.x
-    // 将粒子世界 Y 转为视口 Y（与 draw 中的 parallaxOffset 逻辑对齐）
-    const screenY = this.y - scrollY
+    // 世界坐标 → 视口坐标：与 draw 中 drawY = this.y + parallaxOffset 对齐
+    // layerOffset = -scrollY * factor（与当前画布的 parallaxOffset 相同）
+    const screenY = this.y + layerOffset
     const dy = screenY - mouse.y
     const dist = Math.sqrt(dx * dx + dy * dy)
     if (dist < 140) {
@@ -199,43 +200,53 @@ function drawLines(ctx, arr, parallaxOffset, maxDist, opacity) {
 
 /* ===== 渲染循环 ===== */
 let lastTime = 0
+let lastDebug = 0
 
 function animate(time) {
   const dt = lastTime ? Math.min(time - lastTime, 50) : 16
   lastTime = time
 
-  scrollY += (targetScrollY - scrollY) * 0.08
+  scrollY = window.scrollY
   const w = window.innerWidth
   const h = window.innerHeight
 
   pageHeight = Math.max(document.documentElement.scrollHeight, window.innerHeight * 3)
 
+  // 每个画布的视差偏移（世界 Y → 视口 Y 的映射）
+  const deepOffset = -scrollY * 0.12
+  const midOffset = -scrollY * 0.35
+  const nearOffset = -scrollY * 0.6
+
+  // DEBUG: 每 60 帧打印一次滚动信息
+  if (Math.floor(time / 1000) % 60 === 0 && time - (lastDebug || 0) > 999) {
+    lastDebug = time
+    console.debug('[Particle] scrollTop=%d deep=%d mid=%d near=%d pageHeight=%d',
+      scrollY.toFixed(0), deepOffset.toFixed(0), midOffset.toFixed(0), nearOffset.toFixed(0), pageHeight)
+  }
+
   // --- 深层画布：远景光球 + 稀疏粒子 ---
   deepCanvas.value.width = w
   deepCanvas.value.height = h
-  deepCtx.clearRect(0, 0, w, innerHeight)
-  const deepOffset = -scrollY * 0.12
+  deepCtx.clearRect(0, 0, w, h)
   for (const orb of orbs) {
     orb.update(w, dt)
     orb.draw(deepCtx, deepOffset * (orb.depth * 0.7 + 0.3))
   }
-  for (const p of deepParticles) { p.update(w); p.draw(deepCtx, deepOffset) }
+  for (const p of deepParticles) { p.update(w, deepOffset); p.draw(deepCtx, deepOffset) }
   drawLines(deepCtx, deepParticles, deepOffset, 220, colors.lineOpacity * 0.4)
 
   // --- 中层画布 ---
   midCanvas.value.width = w
   midCanvas.value.height = h
-  midCtx.clearRect(0, 0, w, innerHeight)
-  const midOffset = -scrollY * 0.35
-  for (const p of midParticles) { p.update(w); p.draw(midCtx, midOffset) }
+  midCtx.clearRect(0, 0, w, h)
+  for (const p of midParticles) { p.update(w, midOffset); p.draw(midCtx, midOffset) }
   drawLines(midCtx, midParticles, midOffset, 180, colors.lineOpacity * 0.7)
 
   // --- 近层画布 ---
   nearCanvas.value.width = w
-  nearCanvas.value.height = innerHeight
-  nearCtx.clearRect(0, 0, w, innerHeight)
-  const nearOffset = -scrollY * 0.6
-  for (const p of nearParticles) { p.update(w); p.draw(nearCtx, nearOffset) }
+  nearCanvas.value.height = h
+  nearCtx.clearRect(0, 0, w, h)
+  for (const p of nearParticles) { p.update(w, nearOffset); p.draw(nearCtx, nearOffset) }
   drawLines(nearCtx, nearParticles, nearOffset, 140, colors.lineOpacity)
 
   animationId = requestAnimationFrame(animate)
@@ -244,7 +255,7 @@ function animate(time) {
 /* ===== 事件 ===== */
 let prevW = window.innerWidth
 function onMouseMove(e) { mouse.x = e.clientX; mouse.y = e.clientY }
-function onScroll() { targetScrollY = window.scrollY }
+function onScroll() { scrollY = window.scrollY }
 function onResize() {
   const w = window.innerWidth
   const ratio = prevW > 0 ? w / prevW : 1
@@ -258,32 +269,37 @@ onMounted(() => {
   updateColors()
   const w = window.innerWidth
 
-  pageHeight = Math.max(document.documentElement.scrollHeight, window.innerHeight * 3)
+  pageHeight = Math.max(document.documentElement.scrollHeight, window.innerHeight)
 
   deepCtx = deepCanvas.value.getContext('2d')
   midCtx = midCanvas.value.getContext('2d')
   nearCtx = nearCanvas.value.getContext('2d')
 
-  // 5 个光球：按深度和页面位置分布
+  // 5 个光球：固定 Y 区间、X 随机分布
+  const randX = () => Math.random() * w * 0.8 + w * 0.1
+  const randY = (min, max) => min + Math.random() * (max - min)
+
   orbs = [
-    new Orb(0.1, colors.orbs[0], 260),   // 最远
-    new Orb(0.25, colors.orbs[1], 200),  // 远
-    new Orb(0.4, colors.orbs[2], 150),   // 中远
-    new Orb(0.6, colors.orbs[3], 120),   // 中近
-    new Orb(0.8, colors.orbs[4], 90),    // 最近
+    new Orb(0.1, colors.orbs[0], 260),
+    new Orb(0.25, colors.orbs[1], 200),
+    new Orb(0.4, colors.orbs[2], 150),
+    new Orb(0.6, colors.orbs[3], 120),
+    new Orb(0.8, colors.orbs[4], 90),
   ]
-  orbs[0].x = w * 0.8; orbs[0].y = pageHeight * 0.12
-  orbs[1].x = w * 0.2; orbs[1].y = pageHeight * 0.3
-  orbs[2].x = w * 0.6; orbs[2].y = pageHeight * 0.5
-  orbs[3].x = w * 0.35; orbs[3].y = pageHeight * 0.65
-  orbs[4].x = w * 0.7; orbs[4].y = pageHeight * 0.8
+  // y≈300：1 个
+  orbs[0].x = randX(); orbs[0].y = randY(280, 320)
+  // y 600-1500：2 个
+  orbs[1].x = randX(); orbs[1].y = randY(800, 2000)
+  orbs[2].x = randX(); orbs[2].y = randY(800, 2000)
+  // y 2000-10000：2 个
+  orbs[3].x = randX(); orbs[3].y = randY(2300, 8000)
+  orbs[4].x = randX(); orbs[4].y = randY(2300, 8000)
 
   deepParticles = initParticles(25, w, pageHeight)
   midParticles = initParticles(50, w, pageHeight)
   nearParticles = initParticles(60, w, pageHeight)
 
-  targetScrollY = window.scrollY
-  scrollY = targetScrollY
+  scrollY = window.scrollY
 
   animationId = requestAnimationFrame(animate)
 
