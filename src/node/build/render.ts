@@ -29,7 +29,7 @@ export async function renderPage(
   cssChunk: Rolldown.OutputAsset | null | undefined,
   assets: string[],
   pageToHashMap: Record<string, string>,
-  metadataScript: { html: string; inHead: boolean },
+  metadataScript: { html: string; inHead: boolean; sitemap?: string },
   additionalHeadTags: HeadConfig[],
   usedIcons: Set<string>
 ) {
@@ -185,8 +185,9 @@ export async function renderPage(
     ${await renderHead(head)}
   </head>
   <body>${teleports?.body || ''}
-    ${metadataScript.inHead ? '' : metadataScript.html}
     <div id="app">${page === '404.md' ? '' : content}</div>
+    ${metadataScript.sitemap || ''}
+    ${metadataScript.inHead ? '' : metadataScript.html}
     ${inlinedScript}
   </body>
 </html>`

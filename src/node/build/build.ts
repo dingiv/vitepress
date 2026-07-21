@@ -282,13 +282,15 @@ function generateMetadataScript(
 
   if (!config.metaChunk) {
     return {
-      html: `<script src="${_sdURL}"></script>${_sitemap}`,
-      inHead: false
+      html: `<script src="${_sdURL}"></script>`,
+      sitemap: _sitemap,
+      inHead: true
     }
   }
 
   return {
-    html: `<script src="${_sdURL}"></script>${_sitemap}`,
-    inHead: false
+    html: `<script src="${_sdURL}"></script>`,
+    sitemap: _sitemap,
+    inHead: true
   }
 }
